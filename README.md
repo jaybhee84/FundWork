@@ -27,3 +27,14 @@ Source templates remain at `C:\Users\DepEd\Desktop\Accounting` and are not modif
 
 Run `npm test` for core accounting validation checks.
 
+
+
+## Desktop installers and GitHub Actions
+
+The **Build desktop installers** workflow runs on pushes to `main`, pull requests, and manual dispatch. It uploads Windows x64 `.exe`, Apple Silicon `.dmg`, and Intel `.dmg` as separate Actions artifacts (retained for 14 days).
+
+To publish installers on GitHub Releases, set the version in `package.json` (and update the lockfile with `npm install --package-lock-only`), commit it, then push a matching version tag, such as `v1.0.0`. Tag builds publish only after all three builds succeed. Regular branch builds do not create releases.
+
+Local packaging: `npm run dist:win` on Windows, or `npm run dist:mac -- --arm64` / `--x64` on macOS. Output goes to `dist/`.
+
+These installers are unsigned; macOS builds are not notarized. Windows SmartScreen and macOS Gatekeeper may show security prompts. Trusted distribution requires code-signing certificates and Apple notarization, which are not configured. The GitHub Actions run is the cross-platform build verification; local JavaScript tests do not verify installation on macOS.

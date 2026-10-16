@@ -7,14 +7,17 @@
     "dev": "node launch.js",
     "start": "node launch.js",
     "test": "node test.js",
-    "check": "node --check main.js && node --check preload.js && node --check engine.js && node --check renderer.js"
+    "check": "node --check main.js && node --check preload.js && node --check engine.js && node --check renderer.js",
+    "dist:win": "electron-builder --win nsis --x64 --publish never",
+    "dist:mac": "electron-builder --mac dmg --publish never"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "electron": "^44.8.0"
+    "electron": "^44.8.0",
+    "electron-builder": "^26.15.3"
   },
   "productName": "FundWork",
   "dependencies": {
@@ -27,7 +30,39 @@
     "appId": "com.fundwork.desktop",
     "productName": "FundWork",
     "win": {
-      "icon": "assets/fundwork-3d.ico"
+      "icon": "assets/fundwork-3d.ico",
+      "target": [
+        "nsis"
+      ]
+    },
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "renderer.js",
+      "engine.js",
+      "style.css",
+      "assets/**/*",
+      "package.json"
+    ],
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "FundWork"
+    },
+    "mac": {
+      "icon": "assets/fundwork-logo-3d.png",
+      "category": "public.app-category.finance",
+      "identity": null,
+      "target": [
+        "dmg"
+      ]
     }
   }
 }

@@ -1,0 +1,33 @@
+{
+  "name": "fundwork",
+  "version": "1.0.0",
+  "description": "Local fund accounting and year-end reporting workspace",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node launch.js",
+    "start": "node launch.js",
+    "test": "node test.js",
+    "check": "node --check main.js && node --check preload.js && node --check engine.js && node --check renderer.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "electron": "^44.8.0"
+  },
+  "productName": "FundWork",
+  "dependencies": {
+    "exceljs": "^4.4.0"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
+  },
+  "build": {
+    "appId": "com.fundwork.desktop",
+    "productName": "FundWork",
+    "win": {
+      "icon": "assets/fundwork-3d.ico"
+    }
+  }
+}

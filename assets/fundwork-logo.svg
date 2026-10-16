@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="FundWork F and gear logo">
+<defs><linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#38bdf8"/><stop offset=".55" stop-color="#2875ed"/><stop offset="1" stop-color="#1b38a9"/></linearGradient></defs>
+<rect x="32" y="32" width="960" height="960" rx="218" fill="url(#blue)"/>
+<polygon points="232,238 698,238 698,352 366,352 366,460 592,460 592,574 366,574 366,790 232,790" fill="white"/>
+<polygon points="704,542 729,510 753,514 763,554 781,563 818,547 837,563 826,602 837,619 878,624 886,647 857,676 858,696 890,721 886,745 846,755 837,773 853,810 837,829 798,818 781,829 776,870 753,878 724,849 704,850 679,882 655,878 645,838 627,829 590,845 571,829 582,790 571,773 530,768 522,745 551,716 550,696 518,671 522,647 562,637 571,619 555,582 571,563 610,574 627,563 632,522 655,514 684,543" fill="#e2efff" stroke="#1e4aa4" stroke-width="14" stroke-linejoin="round"/>
+<circle cx="704" cy="696" r="63" fill="#245ed0"/></svg>

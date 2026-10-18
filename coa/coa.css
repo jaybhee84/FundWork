@@ -255,3 +255,5 @@ dialog.coa-dialog{width:min(460px,calc(100vw - 48px))}
 .login-names input{min-width:0}
 
 #coa-report{max-width:100%;flex:0 1 300px}
+
+.coa-file-names{min-width:150px;max-width:260px;overflow-wrap:anywhere}

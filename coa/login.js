@@ -6,6 +6,9 @@ const SHORT={SDO:'SDO',BNHS:'Basilan NHS',BEGANG:'Begang NHS',CONSO:'Conso'};
 const ICON={eye:'<circle cx="12" cy="12" r="3"/><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/>',out:'<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/>',back:'<path d="M15 18l-6-6 6-6"/>'};
 let el,view='signin',busy=false,clicks=[];
 const st={email:'',reg:{familyName:'',firstName:'',middleName:'',email:''},code:null,adminPw:null,lastPw:null};
+const EMAIL_KEY='fundwork.lastEmail';
+try{st.email=localStorage.getItem(EMAIL_KEY)||''}catch{}
+function rememberEmail(email){st.email=String(email||'').trim().toLowerCase();try{localStorage.setItem(EMAIL_KEY,st.email)}catch{}}
 const ADMIN_EMAIL_KEY='fundwork.superadminEmail';
 try{st.adminEmail=localStorage.getItem(ADMIN_EMAIL_KEY)||''}catch{st.adminEmail=''}
 function rememberAdminEmail(email){st.adminEmail=String(email||'').trim().toLowerCase();try{localStorage.setItem(ADMIN_EMAIL_KEY,st.adminEmail)}catch{}}
@@ -47,6 +50,7 @@ function draw(){if(!el)return;let html='';
   el.innerHTML=gears()+html;bind()}
 
 function bind(){
+  const email=q('#li-email');if(email)email.oninput=()=>rememberEmail(email.value);
   const adminEmail=q('#ad-email');if(adminEmail){adminEmail.value=st.adminEmail;adminEmail.oninput=()=>rememberAdminEmail(adminEmail.value)}
   q('#login-logo').onclick=()=>{let now=Date.now();clicks=clicks.filter(t=>now-t<2500);clicks.push(now);if(clicks.length>=5){clicks=[];go('admin')}};
   el.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>{st.adminPw=null;go(b.dataset.view)});
@@ -60,8 +64,8 @@ function capInput(i){const v=D.capitalizeTyping(i.value);if(v!==i.value){const p
 const same=(a,b)=>{if(val(a)!==val(b))throw Error('The passwords do not match')};
 
 function submit(btn){run(btn,async()=>{
-  if(view==='signin'){st.email=val('#li-email').trim();st.lastPw=val('#li-pw');await src().signIn(st.email,st.lastPw);return}
-  if(view==='register'){keepReg();same('#rg-pw','#rg-pw2');let res=await src().register({...st.reg,password:val('#rg-pw')});st.code={name:res.member.name,role:res.member.role,requiresConfirmation:res.requiresConfirmation};st.email=st.reg.email;st.reg={familyName:'',firstName:'',middleName:'',email:''};go('registered');return}
+  if(view==='signin'){rememberEmail(val('#li-email'));st.lastPw=val('#li-pw');await src().signIn(st.email,st.lastPw);return}
+  if(view==='register'){keepReg();same('#rg-pw','#rg-pw2');let res=await src().register({...st.reg,password:val('#rg-pw')});st.code={name:res.member.name,role:res.member.role,requiresConfirmation:res.requiresConfirmation};rememberEmail(st.reg.email);st.reg={familyName:'',firstName:'',middleName:'',email:''};go('registered');return}
   if(view==='force-change'){same('#fc-pw','#fc-pw2');await src().changePassword(st.lastPw,val('#fc-pw'));st.lastPw=null;return}
   if(view==='admin'&&src().kind==='supabase'){rememberAdminEmail(val('#ad-email'));await src().signIn(st.adminEmail,val('#ad-pw'));return}
   if(view==='admin'){let pw=val('#ad-pw'),r=await root.desktop.adminLogin(pw);if(r.mustChange){st.adminPw=pw;go('admin-change');return}await src().enterSuperadmin();return}
@@ -71,6 +75,7 @@ function submit(btn){run(btn,async()=>{
 // ---------- sidebar account chip ----------
 function account(s){const a=document.querySelector('#account');if(!a)return;if(!s){a.innerHTML='';return}
   if(s.role==='superadmin'&&s.email!=='superadmin@local')rememberAdminEmail(s.email);
+  else if(s.role!=='superadmin')rememberEmail(s.email);
   const initials=(s.firstName&&s.familyName?s.firstName[0]+s.familyName[0]:s.name.split(/\s+/).map(w=>w[0]).slice(0,2).join('')).toUpperCase(),sub=s.name.includes(D.ROLES[s.role])?s.email:D.ROLES[s.role]+(s.role==='uploader'?` · ${s.offices.map(c=>SHORT[c]).join(', ')}`:'');
   const ui=root.CoaUI,viewAs=ui?.viewAs||'',picker=s.role==='superadmin'&&ui?`<label class="view-as">View as<select id="view-as">${ui.VIEW_AS.map(([k,l])=>`<option value="${k}" ${k===viewAs?'selected':''}>${e(l)}</option>`).join('')}</select></label>`:'';
   a.innerHTML=picker+`<div class="account"><button class="account-open" id="account-open" title="Account settings"><span class="avatar">${e(initials)}</span><span class="account-text"><b>${e(s.name)}</b><small>${e(sub)}</small></span></button><button class="account-out" id="sign-out" title="Sign out" aria-label="Sign out">${ic(ICON.out)}</button></div>`;
@@ -79,7 +84,7 @@ function account(s){const a=document.querySelector('#account');if(!a)return;if(!
   a.querySelector('#view-as')&&(a.querySelector('#view-as').onchange=ev=>ui.setViewAs(ev.target.value))}
 async function signOut(){try{page='Overview'}catch{}st.adminPw=null;st.lastPw=null;view='signin';await src().signOut()}
 
-async function sync(){let s=null;try{s=await src().getSession()}catch{}const locked=!s||!!s.mustChangePassword;document.body.classList.remove('auth-pending');document.body.classList.toggle('signed-out',locked);if(s?.mustChangePassword){if(view!=='force-change'){view='force-change';draw()}}else if(!s){if(view==='force-change')view='signin';draw();setTimeout(()=>q('input')?.focus(),0)}account(locked?null:s)}
+async function sync(){let s=null;try{s=await src().getSession()}catch{}const locked=!s||!!s.mustChangePassword;document.body.classList.remove('auth-pending');document.body.classList.toggle('signed-out',locked);if(s?.mustChangePassword){if(view!=='force-change'){view='force-change';draw()}}else if(!s){if(view==='force-change')view='signin';draw();setTimeout(()=>(view==='signin'&&st.email?q('#li-pw'):q('input'))?.focus(),0)}account(locked?null:s)}
 
 // Eye buttons on every password box in the app (sign-in screen, Account settings, dialogs).
 document.addEventListener('click',ev=>{const b=ev.target.closest('.pw-eye');if(!b)return;const i=b.previousElementSibling,show=i.type==='password';i.type=show?'text':'password';b.classList.toggle('on',show);b.setAttribute('aria-label',show?'Hide password':'Show password');b.title=show?'Hide password':'Show password';i.focus()});

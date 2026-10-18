@@ -84,6 +84,13 @@ assert(codes(r).includes('TB_BAD_CELLS'))
   const status = async () => (await src.listSubmissions()).find((s) => s.key === key)?.status
 
   await src.switchUser('benhs.bookkeeper@demo.local') // Begang NHS only
+  await assert.rejects(src.setNotApplicable(slot, 'Not required'), /this office/)
+  const naSlot={reportCode:'FAR4_TRUST',unitCode:'BEGANG',periodKey:'2026-01'}
+  await assert.rejects(src.setNotApplicable(naSlot, ''), /reason/)
+  await src.setNotApplicable(naSlot, 'No applicable transactions')
+  const naItems=S.buildChecklist({reportTypes:S.DEFAULT_REPORT_TYPES,units:S.DEFAULT_UNITS,submissions:await src.listSubmissions(),today,trackingStart:'2026-01-01',reminderDays:10})
+  assert(naItems.find(i=>i.key==='FAR4_TRUST|BEGANG|2026-01').done)
+  assert(!S.reminderItems(naItems,10).some(i=>i.key==='FAR4_TRUST|BEGANG|2026-01'))
   await assert.rejects(src.submitFiles({ ...slot, files: [file] }), /not assigned/)
   await src.switchUser('bnhs.bookkeeper@demo.local')
   await assert.rejects(src.submitFiles({ ...slot, files: [{ ...file, precheck: { blocked: true } }] }), /pre-check/)

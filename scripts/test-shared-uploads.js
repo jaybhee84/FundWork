@@ -54,6 +54,17 @@ async function main() {
     const before = await request({ path: '/storage/v1/object/coa-files/' + file.storagePath, raw: true })
     assert.notEqual(before.status, 200, 'signed-out download refused')
 
+    // Assigned uploaders can mark non-applicable reports; other offices and COA cannot.
+    const naSlot = {reportCode:'RADA_TRUST',unitCode:'SDO',periodKey:PERIOD}
+    await assert.rejects(up.setNotApplicable({...naSlot,unitCode:'BNHS'},'Not required'), /this office/)
+    await assert.rejects(up.setNotApplicable(naSlot,' '), /reason/)
+    await assert.rejects(auditor.setNotApplicable(naSlot,'Not required'), /this office/)
+    await up.setNotApplicable(naSlot,'Not required for this office')
+    const na = (await up.listSubmissions()).find(s=>s.key===`RADA_TRUST|SDO|${PERIOD}`)
+    assert.equal(na.status,'not_applicable')
+    assert.equal(na.reviewNote,'Not required for this office')
+    assert((await up.listActivity(na.key)).some(a=>a.action==='not_applicable'))
+
     // Division Accountant approves
     const accountant = createSupabaseSource(request); await accountant.signIn(acct, pw)
     await accountant.approve(key)

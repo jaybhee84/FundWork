@@ -253,3 +253,5 @@ dialog.coa-dialog{width:min(460px,calc(100vw - 48px))}
 .pw-eye.on{color:var(--accent)}
 .login-names{display:grid;grid-template-columns:1.2fr 1.2fr .6fr;gap:8px}
 .login-names input{min-width:0}
+
+#coa-report{max-width:100%;flex:0 1 300px}

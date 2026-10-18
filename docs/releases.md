@@ -1,4 +1,4 @@
-# FundWork v1.0.3
+# FundWork v1.0.2
 
 - Sign-in remembers the last email used after signing out or restarting. Superadmin retains its separate remembered email. Passwords are not saved.
 - Added a report-title dropdown to filter checklist entries across periods and funds.

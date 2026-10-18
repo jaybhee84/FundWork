@@ -24,12 +24,12 @@ jobs:
             artifact: FundWork-Windows-x64
             pattern: dist/*.exe
           - label: macOS Apple Silicon
-            os: macos-latest
+            os: macos-15
             command: npm run dist:mac -- --arm64
             artifact: FundWork-macOS-arm64
             pattern: dist/*.dmg
           - label: macOS Intel
-            os: macos-latest
+            os: macos-15-intel
             command: npm run dist:mac -- --x64
             artifact: FundWork-macOS-x64
             pattern: dist/*.dmg

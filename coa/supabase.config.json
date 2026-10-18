@@ -1,0 +1,5 @@
+{
+  "url": "https://xdellysgtpmzxmygkyow.supabase.co",
+  "publishableKey": "sb_publishable_CSMpPLNM553YNNgPU6ZiEg_ZxyBBoEG",
+  "note": "Shared backend for COA Submissions. The publishable key is meant to ship inside the app; Row Level Security decides what each signed-in person can see. Never put a secret / service_role key or an sbp_ token in this file."
+}

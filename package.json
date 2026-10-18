@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "node launch.js",
     "start": "node launch.js",
-    "test": "node test.js",
-    "check": "node --check main.js && node --check preload.js && node --check engine.js && node --check renderer.js",
+    "test": "node test.js && node coa/test.js",
+    "supabase": "node scripts/supabase.js",
+    "check": "node --check main.js && node --check preload.js && node --check engine.js && node --check renderer.js && node --check coa/schedule.js && node --check coa/precheck.js && node --check coa/demo-source.js && node --check coa/ui.js && node --check coa/login.js && node --check coa/supabase-source.js",
     "dist:win": "electron-builder --win nsis --x64 --publish never",
     "dist:mac": "electron-builder --mac dmg --publish never"
   },
@@ -47,6 +48,9 @@
       "renderer.js",
       "engine.js",
       "style.css",
+      "coa/**/*",
+      "supabase/migrations/*.sql",
+      "!coa/test*.js",
       "assets/**/*",
       "package.json"
     ],
@@ -57,7 +61,7 @@
       "shortcutName": "FundWork"
     },
     "mac": {
-      "icon": "assets/fundwork-logo-3d.png",
+      "icon": "assets/fundwork-3d.icns",
       "category": "public.app-category.finance",
       "identity": null,
       "target": [

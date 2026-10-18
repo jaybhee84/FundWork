@@ -1,9 +1,12 @@
 const {app,BrowserWindow,ipcMain,dialog,Notification,Tray,Menu,clipboard,safeStorage}=require('electron');
 const fs=require('node:fs'); const path=require('node:path'); const ExcelJS=require('exceljs');
-let win; const dbPath=()=>path.join(app.getPath('userData'),'accounts.json');
-function read(){try{return JSON.parse(fs.readFileSync(dbPath(),'utf8'))}catch(e){if(e.code!=='ENOENT')throw e;return {entries:[],accounts:{},organization:'Your organization',year:Number(new Date(Date.now()+288e5).toISOString().slice(0,4))}}}
+let win;
+// Books live in SQLite (store.js). An older accounts.json is imported on first launch and kept as accounts.json.migrated.
+const dbPath=()=>path.join(app.getPath('userData'),'fundwork.db');let store;
+const books=()=>store??=require('./store').openStore(dbPath(),{legacyJson:path.join(app.getPath('userData'),'accounts.json')});
+function read(){return books().read()}
 function sheetRows(s,limit=Infinity){let rows=[];s.eachRow({includeEmpty:true},row=>{if(rows.length>=limit)return;let a=[];for(let i=1;i<=s.columnCount;i++){let v=row.getCell(i).value;if(v instanceof Date)v=v.toISOString().slice(0,10);else if(v&&typeof v==='object')v=v.result??v.text??(v.richText?v.richText.map(t=>t.text).join(''):'');a.push(v??'')}rows.push(a)});return rows}
-function write(data){const file=dbPath();fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file+'.tmp',JSON.stringify(data,null,2));fs.renameSync(file+'.tmp',file)}
+function write(data){books().write(data)}
 app.setName('FundWork');
 // Access records include credentials: protect the entire file with the OS account key.
 ipcMain.on('coa-access-store',(event,request)=>{
@@ -33,7 +36,7 @@ ipcMain.handle('save',(_,data)=>{if(!data||!Array.isArray(data.entries)||typeof 
 ipcMain.handle('pick',async()=>{let r=await dialog.showOpenDialog(win,{filters:[{name:'Journal exports',extensions:['xlsx','csv']}],properties:['openFile']});if(r.canceled)return null;let w=new ExcelJS.Workbook();if(path.extname(r.filePaths[0]).toLowerCase()==='.csv')await w.csv.readFile(r.filePaths[0]);else await w.xlsx.readFile(r.filePaths[0]);return {name:path.basename(r.filePaths[0]),sheets:w.worksheets.map(s=>({name:s.name,rows:sheetRows(s)}))}});
 ipcMain.handle('export',async(_,payload)=>{let r=await dialog.showSaveDialog(win,{defaultPath:payload.name,filters:[{name:'Excel workbook',extensions:['xlsx']}]});if(r.canceled)return false;let w=new ExcelJS.Workbook();for(const s of payload.sheets){let ws=w.addWorksheet(s.name.slice(0,31));ws.addRows(s.rows);ws.columns.forEach(col=>col.width=24);ws.getRow(1).font={bold:true}}await w.xlsx.writeFile(r.filePath);return true});
 ipcMain.handle('backup',async()=>{let r=await dialog.showSaveDialog(win,{defaultPath:'accounting-backup.json',filters:[{name:'Backup',extensions:['json']}]});if(!r.canceled)fs.writeFileSync(r.filePath,JSON.stringify(read(),null,2));return !r.canceled});
-ipcMain.handle('restore',async()=>{let r=await dialog.showOpenDialog(win,{filters:[{name:'Backup',extensions:['json']}],properties:['openFile']});if(r.canceled)return null;let d=JSON.parse(fs.readFileSync(r.filePaths[0],'utf8'));if(!Array.isArray(d.entries)||!d.accounts||!Number.isInteger(d.year))throw Error('Invalid backup');let c=await dialog.showMessageBox(win,{type:'question',buttons:['Cancel','Restore backup'],defaultId:0,cancelId:0,message:'Replace current records with this backup?'});if(c.response!==1)return null;fs.copyFileSync(dbPath(),dbPath()+'.before-restore');write(d);return d});
+ipcMain.handle('restore',async()=>{let r=await dialog.showOpenDialog(win,{filters:[{name:'Backup',extensions:['json']}],properties:['openFile']});if(r.canceled)return null;let d=JSON.parse(fs.readFileSync(r.filePaths[0],'utf8'));if(!Array.isArray(d.entries)||!d.accounts||!Number.isInteger(d.year))throw Error('Invalid backup');let c=await dialog.showMessageBox(win,{type:'question',buttons:['Cancel','Restore backup'],defaultId:0,cancelId:0,message:'Replace current records with this backup?'});if(c.response!==1)return null;books().snapshot(dbPath()+'.before-restore');write(d);return d});
 
 // COA Submissions: desktop side. Reads spreadsheets for pre-checks, shows the daily
 // countdown notification, and keeps FundWork in the tray when the user chooses to.
@@ -45,6 +48,7 @@ function showWindow(){if(!win)return;if(win.isMinimized())win.restore();win.show
 function ensureTray(){if(tray)return;tray=new Tray(path.join(__dirname,'assets','fundwork-3d.ico'));tray.setToolTip('FundWork');tray.setContextMenu(Menu.buildFromTemplate([{label:'Open FundWork',click:showWindow},{type:'separator'},{label:'Quit FundWork',click:()=>{quitting=true;app.quit()}}]));tray.on('click',showWindow)}
 const manilaHour=()=>(new Date().getUTCHours()+8)%24;
 app.on('before-quit',()=>{quitting=true});
+app.on('will-quit',()=>{store?.close();store=null});
 app.on('second-instance',showWindow);
 ipcMain.handle('coa-read-sheets',async(_,arg)=>{let data=arg&&arg.data,name=String(arg&&arg.name||'');if(!(data instanceof Uint8Array))throw Error('No file data');if(data.byteLength>50*1024*1024)throw Error('File is larger than 50 MB');let w=new ExcelJS.Workbook(),buf=Buffer.from(data.buffer,data.byteOffset,data.byteLength);if(path.extname(name).toLowerCase()==='.csv')await w.csv.read(require('node:stream').Readable.from(buf));else await w.xlsx.load(buf);return {sheets:w.worksheets.map(s=>({name:s.name,rows:sheetRows(s,20000)}))}});
 ipcMain.handle('coa-desktop-get',()=>{let p=prefs();return {trayOnClose:!!p.trayOnClose,openAtLogin:app.isPackaged&&app.getLoginItemSettings().openAtLogin,canOpenAtLogin:app.isPackaged,lastReminder:p.lastReminder,notifications:Notification.isSupported()}});

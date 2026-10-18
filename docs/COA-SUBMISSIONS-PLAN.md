@@ -38,7 +38,7 @@ References (read-only, do not modify):
 
 ## 2. How it fits into FundWork
 
-FundWork today is **local-only**: one PC, records in `%APPDATA%/FundWork/accounts.json`, and "Records stay on this computer" in the sidebar.
+FundWork today is **local-only**: one PC, records in `%APPDATA%/FundWork/fundwork.db` (SQLite, see `store.js`; formerly `accounts.json`), and "Records stay on this computer" in the sidebar.
 
 The submission workflow is inherently **multi-user**. Two uploaders, one reviewer and an external COA auditor work on different PCs. That is impossible without a shared backend.
 

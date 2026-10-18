@@ -1,9 +1,9 @@
-# FundWork v1.0.2
+# FundWork v1.0.3
 
-- Sign-in remembers the last email used after signing out or restarting. Superadmin retains its separate remembered email. Passwords are not saved.
-- Added a report-title dropdown to filter checklist entries across periods and funds.
-- Assigned IU and SDO uploaders can mark reports **Not applicable**, with a required reason. These entries no longer count as unsubmitted or appear in reminders.
-- Enforced office permissions for Not applicable actions; COA users cannot change applicability.
-- Fixed the details panel staying open for a report hidden by a changed filter.
-- Sign-in focuses the password field when an email is already remembered.
-- Added a **File name** column showing the current uploaded attachments for each checklist entry.
+- Books now live in a local SQLite database (`fundwork.db`) instead of `accounts.json`. Each save is written in one step, so an interrupted save can't leave half-written records.
+- Existing records move over automatically on first launch. The old file is kept as `accounts.json.migrated`.
+- Backups are still `.json` files, and older backups still restore. Before a restore, FundWork now saves a full copy of the database as `fundwork.db.before-restore`.
+- The checklist's office filter is now a dropdown alongside the other filters.
+- Office, Period, Due, Countdown, Status and Files are centered in report tables.
+- The Division Office is now named **Isabela City SDO**.
+- **Allow user** for the Division Accountant now asks only for email, workplace and position. People type their own name when they register, and editing a user keeps their registered name.

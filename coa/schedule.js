@@ -260,7 +260,7 @@ var CoaSchedule = (function(exports) {
 	const DEFAULT_UNITS = [
 		{
 			code: "SDO",
-			name: "SDO Basilan (Division Office)",
+			name: "Isabela City SDO",
 			sort: 1
 		},
 		{

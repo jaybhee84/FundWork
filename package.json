@@ -1,6 +1,6 @@
 {
   "name": "fundwork",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Local fund accounting and year-end reporting workspace",
   "main": "main.js",
   "scripts": {

@@ -56,6 +56,23 @@ assert(reminders.every((i) => !i.done && i.daysLeft <= 10))
 // Philippine date regardless of PC timezone
 assert.equal(C.todayManila(new Date('2026-10-17T16:30:00Z')), '2026-10-18')
 
+// Backlog and fund isolation: approval of one fund never completes another.
+const backlog = C.buildChecklist({...base, trackingStart:'2026-01-01', submissions:[]})
+for (const code of ['MTB','MTB_PROVIDENT','MTB_TRUST','FAR4','FAR4_URS']) {
+  assert(backlog.some(i => i.key === `${code}|SDO|2026-01`), `January entry for ${code}`)
+}
+assert(backlog.every(i => i.period.start <= base.today), 'no future reporting periods')
+assert.deepEqual([...new Set(backlog.filter(i => i.report.code === 'MTB').map(i => i.period.key))].sort(),
+  Array.from({length:10}, (_,i) => `2026-${String(i+1).padStart(2,'0')}`))
+const earlyMonth = C.buildChecklist({...base, today:'2026-10-01', horizonDays:1, submissions:[]})
+assert(earlyMonth.some(i => i.key === 'MTB|SDO|2026-10'), 'current month available regardless of due date')
+const futureRow = {...approved, periodKey:'2026-12'}
+assert(!C.buildChecklist({...base, submissions:[futureRow]}).some(i => i.period.key === '2026-12'))
+const separated = C.buildChecklist({...base, trackingStart:'2026-01-01', submissions:[approved]})
+assert(separated.find(i => i.key === 'MTB|SDO|2026-09').done)
+assert.equal(separated.find(i => i.key === 'MTB_TRUST|SDO|2026-09').status, 'missing')
+assert(C.TRIAL_BALANCE_CODES.includes('MTB_PROVIDENT'))
+assert.equal(new Set(C.DEFAULT_REPORT_TYPES.map(r=>r.code)).size, C.DEFAULT_REPORT_TYPES.length)
 console.log('COA schedule checks passed')
 
 require('./test-submissions')

@@ -41,7 +41,7 @@ const INTERFACE=['signIn','register','changePassword','resetMemberPassword','sig
 function createDemoSource(opts={}){
   const today=opts.today||S.todayManila(),clock=opts.now||(()=>new Date().toISOString()),nowMs=opts.nowMs||(()=>Date.now());
   const [ty,tm]=today.split('-').map(Number),prev=tm===1?`${ty-1}-12`:`${ty}-${String(tm-1).padStart(2,'0')}`;
-  const config={units:S.DEFAULT_UNITS,reportTypes:S.DEFAULT_REPORT_TYPES,trackingStart:opts.trackingStart||`${prev}-01`,reminderDays:10,horizonDays:45};
+  const config={units:S.DEFAULT_UNITS,reportTypes:S.DEFAULT_REPORT_TYPES,trackingStart:opts.trackingStart||'2026-01-01',reminderDays:10,horizonDays:45};
   // Sample accounts are for tests only (opts.sampleAccounts); the app starts with none.
   const members=opts.sampleAccounts===false?[]:[
     {email:'accountant@demo.local',name:'Division Accountant',role:'accountant',offices:ALL_UNITS,base:'SDO',position:'Accountant',active:true},
@@ -74,7 +74,7 @@ function createDemoSource(opts={}){
   function record(key,action,details={},by=me.email,at=clock()){log.push({id:id('act'),itemKey:key,action,details,by,byName:memberOf(by)?.name||by,at})}
   function slotLabel(s){return `${s.reportCode} · ${unit(s.unitCode)?.name||s.unitCode} · ${s.periodLabel}`}
   function getRow(key){let s=subs.get(key);if(!s)throw Error('Nothing has been submitted for this report yet');return s}
-  function ensureRow(item){let key=S.itemKey(item.reportCode,item.unitCode,item.periodKey);let s=subs.get(key);if(!s){if(!report(item.reportCode)||!unit(item.unitCode))throw Error('Unknown report or office');let p=S.periodFromKey(item.periodKey);s={id:id('sub'),key,reportCode:item.reportCode,unitCode:item.unitCode,periodKey:item.periodKey,periodLabel:p.label,dueDate:S.computeDueDate(report(item.reportCode).dueRule,p),status:'missing',reviewNote:null,reviewedBy:null,reviewedAt:null,approvedAt:null,updatedAt:clock()};subs.set(key,s)}return s}
+  function ensureRow(item){let key=S.itemKey(item.reportCode,item.unitCode,item.periodKey);let s=subs.get(key);if(!s){if(!report(item.reportCode)||!unit(item.unitCode))throw Error('Unknown report or office');let p=S.periodFromKey(item.periodKey);if(p.start>today)throw Error('Future reporting periods are not available for upload');s={id:id('sub'),key,reportCode:item.reportCode,unitCode:item.unitCode,periodKey:item.periodKey,periodLabel:p.label,dueDate:S.computeDueDate(report(item.reportCode).dueRule,p),status:'missing',reviewNote:null,reviewedBy:null,reviewedAt:null,approvedAt:null,updatedAt:clock()};subs.set(key,s)}return s}
   const currentFiles=key=>files.filter(f=>f.itemKey===key&&!f.supersededAt);
   function requireReviewer(){requireSession();if(!canReview(me))throw Error('Only the Division Accountant can do this')}
 

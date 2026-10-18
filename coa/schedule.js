@@ -181,11 +181,10 @@ var CoaSchedule = (function(exports) {
 	* database row and come back with status "missing".
 	*/
 	function buildChecklist(input) {
-		const { reportTypes, units, submissions, today, trackingStart, horizonDays, reminderDays } = input;
+		const { reportTypes, units, submissions, today, trackingStart, reminderDays } = input;
 		const unitByCode = new Map(units.map((u) => [u.code, u]));
 		const reportByCode = new Map(reportTypes.map((r) => [r.code, r]));
 		const rows = new Map(submissions.map((s) => [itemKey(s.reportCode, s.unitCode, s.periodKey), s]));
-		const horizon = addDays(today, horizonDays);
 		const items = /* @__PURE__ */ new Map();
 		const make = (report, unit, period, row) => {
 			const dueDate = row?.dueDate ?? computeDueDate(report.dueRule, period);
@@ -215,10 +214,9 @@ var CoaSchedule = (function(exports) {
 		};
 		for (const report of reportTypes) {
 			if (!report.active) continue;
-			for (const period of periodsBetween(report.frequency, trackingStart, horizon)) {
+			for (const period of periodsBetween(report.frequency, trackingStart, today)) {
 				if (period.end < trackingStart) continue;
 				if (report.periods && report.periods.length && !report.periods.includes(periodSuffix(period.key))) continue;
-				if (computeDueDate(report.dueRule, period) > horizon) continue;
 				for (const unitCode of report.appliesTo) {
 					const unit = unitByCode.get(unitCode);
 					if (!unit) continue;
@@ -229,6 +227,7 @@ var CoaSchedule = (function(exports) {
 		}
 		for (const [key, row] of rows) {
 			if (items.has(key)) continue;
+			if (periodFromKey(row.periodKey).start > today) continue;
 			const report = reportByCode.get(row.reportCode);
 			const unit = unitByCode.get(row.unitCode);
 			if (!report || !unit) continue;
@@ -281,6 +280,7 @@ var CoaSchedule = (function(exports) {
 		}
 	];
 	const ALL = DEFAULT_UNITS.map((u) => u.code);
+	const FUNDS = [{code:"REGULAR",name:"Regular Fund"},{code:"PROVIDENT",name:"Provident Fund"},{code:"TRUST",name:"Trust Fund"}];
 	const DEFAULT_REPORT_TYPES = [
 		{
 			code: "MTB",
@@ -471,8 +471,9 @@ var CoaSchedule = (function(exports) {
 			dueRule: "NEXT_DATE:01-31",
 			name: "Report on the Physical Count of Inventories (RPCI)",
 			description: "Physical inventory of office supplies, textbooks, learning modules and semi-expendable property."
-		}
-	].map((d) => ({
+		},
+		{code:"FAR4_URS",sort:15,frequency:"MONTHLY",category:"Monthly",dueRule:"NEXT_MONTH_DAY:10",name:"URS-generated FAR No. 4",description:"Submit the URS-generated FAR No. 4 separately from the regular FAR No. 4."}
+	].flatMap(d => FUNDS.map(f => ({...d,code:d.code+(f.code==='REGULAR'?'':'_'+f.code),fundCode:f.code,name:d.name+' - '+f.name}))).map((d) => ({
 		...d,
 		periods: d.periods ?? null,
 		appliesTo: [...ALL],
@@ -483,7 +484,7 @@ var CoaSchedule = (function(exports) {
 		"MTB",
 		"QTB",
 		"YTB"
-	];
+	].flatMap(code => FUNDS.map(f => code+(f.code==='REGULAR'?'':'_'+f.code)));
 	/** Words in file names / sheet headers that identify each office. */
 	const UNIT_ALIASES = {
 		SDO: [
@@ -499,6 +500,7 @@ var CoaSchedule = (function(exports) {
 		BEGANG: ["begang"],
 		CONSO: ["conso", "consolidated"]
 	};
+	exports.FUNDS = FUNDS;
 	exports.DEFAULT_REPORT_TYPES = DEFAULT_REPORT_TYPES;
 	exports.DEFAULT_UNITS = DEFAULT_UNITS;
 	exports.DONE_STATUSES = DONE_STATUSES;

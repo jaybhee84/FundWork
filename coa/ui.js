@@ -14,7 +14,7 @@ try{localStorage.removeItem('fundwork.demoSession')}catch{}   // clears what ear
 // No sample accounts or sample reports: the superadmin allows the real people, who then register.
 const accessStore=root.desktop?.coaAccessStore;
 let source=root.desktop?.coaRequest?root.CoaSupabase.createSupabaseSource(root.desktop.coaRequest):D.createDemoSource({sampleAccounts:false,seed:false,accessState:accessStore?.({action:'load'}),saveAccess:accessStore?(value)=>accessStore({action:'save',value}):undefined}),data=null,loading=null,failed=null,prefs=null,signedIn=null,account=null;
-const ui={office:'ALL',freq:'',status:'',period:'',q:'',selected:null};
+const ui={fund:'',office:'ALL',freq:'',status:'',period:'',q:'',selected:null};
 // Superadmin "View as": read-only preview of what each role sees. Nothing can be uploaded or approved while previewing.
 const VIEW_AS=[['','Superadmin'],['accountant','Division Accountant'],['uploader:SDO','SDO Senior Bookkeeper'],['uploader:BNHS','BNHS Senior Bookkeeper'],['uploader:BEGANG','BeNHS Senior Bookkeeper'],['coa','COA personnel']];
 let viewAs='';
@@ -108,15 +108,15 @@ function bindReminders(){let t=document.querySelector('#coa-tray'),l=document.qu
   if(n)n.onclick=async()=>{let r=await checkReminder(true);prefs=await desktop.coaDesktop();render();if(r&&!r.shown)toast(r.reason)}}
 
 // ---------- Checklist ----------
-function filtered(){let q=ui.q.trim().toLowerCase();return data.items.filter(i=>(ui.office==='ALL'||i.unit.code===ui.office)&&(!ui.freq||i.report.frequency===ui.freq)&&(!ui.status||(ui.status==='open'?!i.done:i.status===ui.status))&&(!ui.period||i.period.key===ui.period)&&(!q||`${i.report.code} ${i.report.name}`.toLowerCase().includes(q)))}
+function filtered(){let q=ui.q.trim().toLowerCase();return data.items.filter(i=>(ui.office==='ALL'||i.unit.code===ui.office)&&(!ui.fund||(i.report.fundCode||'REGULAR')===ui.fund)&&(!ui.freq||i.report.frequency===ui.freq)&&(!ui.status||(ui.status==='open'?!i.done:i.status===ui.status))&&(!ui.period||i.period.key===ui.period)&&(!q||`${i.report.code} ${i.report.name}`.toLowerCase().includes(q)))}
 function checklist(){const {items,config}=data;const periods=[...new Map(items.map(i=>[i.period.key,i.period])).values()].sort((a,b)=>b.end.localeCompare(a.end)||a.key.localeCompare(b.key));
   if(ui.period&&!periods.some(p=>p.key===ui.period))ui.period='';
   const opts=(list,v)=>list.map(([k,l])=>`<option value="${k}" ${v===k?'selected':''}>${l}</option>`).join('');
   $c().innerHTML=heading('Checklist',data.session.role==='coa'?'Reports released to COA':`Every report each office must submit, tracked from ${S.formatDate(config.trackingStart)}. Select a row for details.`)+banner()+
-  `<div class="toolbar coa-filters"><div class="segmented" id="coa-office" role="tablist" aria-label="Office">${[['ALL','All'],...config.units.map(u=>[u.code,short(u.code)])].map(([c,l])=>`<button role="tab" data-office="${c}" class="${ui.office===c?'active':''}" aria-selected="${ui.office===c}">${l}</button>`).join('')}</div><select id="coa-freq" aria-label="Frequency">${opts(FREQ,ui.freq)}</select><select id="coa-status" aria-label="Status">${opts(STATUSES,ui.status)}</select><select id="coa-period" aria-label="Period">${opts([['','All periods'],...periods.map(p=>[p.key,p.label])],ui.period)}</select><input id="coa-q" type="search" placeholder="Search report" value="${esc(ui.q)}"></div><div id="coa-split" class="coa-split"><div class="coa-main"><div id="coa-table"></div><p id="coa-countline" class="muted"></p></div><div id="coa-panel" class="coa-panel" tabindex="-1"></div></div>`;
+  `<div class="toolbar coa-filters"><div class="segmented" id="coa-office" role="tablist" aria-label="Office">${[['ALL','All'],...config.units.map(u=>[u.code,short(u.code)])].map(([c,l])=>`<button role="tab" data-office="${c}" class="${ui.office===c?'active':''}" aria-selected="${ui.office===c}">${l}</button>`).join('')}</div><select id="coa-fund" aria-label="Fund">${opts([['','All funds'],...S.FUNDS.map(f=>[f.code,f.name])],ui.fund)}</select><select id="coa-freq" aria-label="Frequency">${opts(FREQ,ui.freq)}</select><select id="coa-status" aria-label="Status">${opts(STATUSES,ui.status)}</select><select id="coa-period" aria-label="Period">${opts([['','All periods'],...periods.map(p=>[p.key,p.label])],ui.period)}</select><input id="coa-q" type="search" placeholder="Search report" value="${esc(ui.q)}"></div><div id="coa-split" class="coa-split"><div class="coa-main"><div id="coa-table"></div><p id="coa-countline" class="muted"></p></div><div id="coa-panel" class="coa-panel" tabindex="-1"></div></div>`;
   
   document.querySelectorAll('#coa-office button').forEach(b=>b.onclick=()=>{ui.office=b.dataset.office;document.querySelectorAll('#coa-office button').forEach(x=>{x.classList.toggle('active',x===b);x.setAttribute('aria-selected',x===b)});drawTable()});
-  [['#coa-freq','freq'],['#coa-status','status'],['#coa-period','period']].forEach(([s,k])=>document.querySelector(s).onchange=e=>{ui[k]=e.target.value;drawTable()});
+  [['#coa-fund','fund'],['#coa-freq','freq'],['#coa-status','status'],['#coa-period','period']].forEach(([s,k])=>document.querySelector(s).onchange=e=>{ui[k]=e.target.value;drawTable()});
   document.querySelector('#coa-q').oninput=e=>{ui.q=e.target.value;drawTable()};
   drawTable();drawPanel()}
 function drawTable(){let el=document.querySelector('#coa-table');if(!el)return;let list=filtered();el.innerHTML=itemTable(list,{selectable:true,empty:'No reports match these filters'});bindRows(el,openItem);

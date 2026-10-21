@@ -132,6 +132,7 @@ var CoaSchedule = (function(exports) {
 	}
 	function computeDueDate(rule, period) {
 		const [kind, arg] = rule.split(":");
+		if (kind === 'FIXED') return arg;
 		const [ey, em] = period.end.split("-").map(Number);
 		switch (kind) {
 			case "NEXT_MONTH_DAY": {
@@ -154,6 +155,7 @@ var CoaSchedule = (function(exports) {
 	}
 	function describeDueRule(rule) {
 		const [kind, arg] = rule.split(":");
+		if (kind === 'FIXED') return 'One-time submission on or before ' + formatDate(arg);
 		if (kind === "NEXT_MONTH_DAY") return `On or before the ${ordinal(+arg)} of the following month`;
 		if (kind === "DAYS_AFTER") return `Within ${arg} days after the period ends`;
 		if (kind === "NEXT_DATE") return "On or before " + arg.split("|").map((md) => {
@@ -214,8 +216,9 @@ var CoaSchedule = (function(exports) {
 		};
 		for (const report of reportTypes) {
 			if (!report.active) continue;
-			for (const period of periodsBetween(report.frequency, trackingStart, today)) {
-				if (period.end < trackingStart) continue;
+			if (report.requestCode && report.requestDate > today) continue;
+			for (const period of report.requestCode ? report.periods.map(periodFromKey) : periodsBetween(report.frequency, trackingStart, today)) {
+				if (!report.requestCode && period.end < trackingStart) continue;
 				if (report.periods && report.periods.length && !report.periods.includes(periodSuffix(period.key))) continue;
 				for (const unitCode of report.appliesTo) {
 					const unit = unitByCode.get(unitCode);
@@ -231,6 +234,7 @@ var CoaSchedule = (function(exports) {
 			const report = reportByCode.get(row.reportCode);
 			const unit = unitByCode.get(row.unitCode);
 			if (!report || !unit) continue;
+			if (report.requestCode && report.requestDate > today) continue;
 			items.set(key, make(report, unit, periodFromKey(row.periodKey), row));
 		}
 		return [...items.values()].sort(compareItems);

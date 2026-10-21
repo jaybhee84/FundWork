@@ -3,7 +3,7 @@
 // shared Supabase source in the desktop app, with an isolated demo for browser previews.
 (function(root){
 const S=root.CoaSchedule,P=root.CoaPrecheck,D=root.CoaDemo;
-const PAGES=['COA overview','COA checklist','COA access','COA backend','Account settings'],LABELS={'COA overview':'Overview','COA checklist':'Checklist','COA access':'Allow users','COA backend':'Supabase'};
+const PAGES=['COA overview','COA checklist','COA special','COA access','COA backend','Account settings'],LABELS={'COA overview':'Overview','COA checklist':'Checklist','COA special':'Special Submissions','COA access':'Allow users','COA backend':'Supabase'};
 const SHORT={SDO:'SDO',BNHS:'Basilan NHS',BEGANG:'Begang NHS',CONSO:'Conso'};
 const FREQ=[['','All frequencies'],['MONTHLY','Monthly'],['QUARTERLY','Quarterly'],['SEMIANNUAL','Semi-annual'],['ANNUAL','Annual']];
 const STATUSES=[['','All statuses'],['open','Needs action'],['missing','Not uploaded'],['for_review','For review'],['returned','Returned'],['approved','Released to COA'],['not_applicable','Not applicable']];
@@ -20,6 +20,8 @@ const VIEW_AS=[['','Superadmin'],['accountant','Division Accountant'],['uploader
 let viewAs='';
 function previewSession(real,key){const [role,unit]=key.split(':'),all=S.DEFAULT_UNITS.map(u=>u.code);return {...real,role,offices:role==='uploader'?(unit==='SDO'?['SDO','CONSO']:[unit]):all,preview:true,previewLabel:VIEW_AS.find(v=>v[0]===key)[1]}}
 let staged={key:null,files:[]},busy=false;
+let checklistScope=null;const checklistFilters={};
+function switchChecklistScope(scope){if(checklistScope===scope)return;if(checklistScope)checklistFilters[checklistScope]={...ui,selected:null};Object.assign(ui,{report:'',fund:'',office:'ALL',freq:'',status:'',period:'',q:'',selected:null},checklistFilters[scope]||{});checklistScope=scope}
 
 const $c=()=>document.querySelector('#content');
 const short=code=>SHORT[code]||code;
@@ -39,7 +41,7 @@ function slotLabel(key){let [r,u,p]=key.split('|');try{p=S.periodFromKey(p).labe
 function mine(items){let s=data.session;if(s.role==='accountant'||s.role==='superadmin')return items;if(s.role==='uploader')return items.filter(i=>s.offices.includes(i.unit.code));return []}
 
 async function load(){const who=await source.getSession();signedIn=!!who;
-  if(who?.email!==account){account=who?.email||null;viewAs='';Object.assign(ui,{report:'',fund:'',office:'ALL',freq:'',status:'',period:'',q:'',selected:null});staged={key:null,files:[]}}
+  if(who?.email!==account){account=who?.email||null;viewAs='';Object.assign(ui,{report:'',fund:'',office:'ALL',freq:'',status:'',period:'',q:'',selected:null});staged={key:null,files:[]};checklistScope=null;for(const k of Object.keys(checklistFilters))delete checklistFilters[k]}
   if(!who){data=null;failed=null;return}
   const [realSession,config,subs,files,members]=await Promise.all([source.getSession(),source.getConfig(),source.listSubmissions(),source.listFiles(),source.listMembers()]);
   const session=realSession.role==='superadmin'&&viewAs?previewSession(realSession,viewAs):realSession;
@@ -57,20 +59,20 @@ source.subscribe(()=>refresh());
 // ---------- hooks used by renderer.js ----------
 function navLabel(p){return LABELS[p]||p}
 /** COA personnel only use COA Submissions; the books are for the Accounting staff. */
-function navAllowed(p){const s=data?.session;if(!s||p==='Account settings')return true;if(s.role==='superadmin')return true;if(p==='COA backend')return false;if(p==='COA access')return D.canManageMembers(s);if(s.role==='coa')return p==='COA overview'||p==='COA checklist';return true}
+function navAllowed(p){const s=data?.session;if(!s||p==='Account settings')return true;if(s.role==='superadmin')return true;if(p==='COA backend')return false;if(p==='COA access')return D.canManageMembers(s);if(s.role==='coa')return p==='COA overview'||p==='COA checklist'||p==='COA special';return true}
 /** Where each role lands after signing in. */
 function homePage(){const r=data?.session.role;if(data?.session.preview)return 'COA overview';return r==='superadmin'?'COA access':r==='coa'?'COA overview':'Overview'}
-function navBadge(p){if(p!=='COA checklist'||!data)return '';let n=S.reminderItems(mine(data.items),data.config.reminderDays).length;return n?`<span class="nav-badge" title="${plural(n,'report')} overdue or due within ${data.config.reminderDays} days">${n}</span>`:''}
+function navBadge(p){if(!['COA checklist','COA special'].includes(p)||!data)return '';let n=S.reminderItems(mine(data.items.filter(i=>!!i.report.requestCode===(p==='COA special'))),data.config.reminderDays).length;return n?`<span class="nav-badge" title="${plural(n,'report')} overdue or due within ${data.config.reminderDays} days">${n}</span>`:''}
 function afterRender(p){document.body.classList.toggle('coa-page',PAGES.includes(p));if(data?.session.preview&&!PAGES.includes(p))markPreview();if(!PAGES.includes(p)||signedIn===false)return;
   if(failed&&!data){$c().innerHTML=`<div class="warning">Unable to load COA submissions: ${esc(failed.message)}</div>`;return}
   if(!data){$c().innerHTML='<p class="muted">Loading COA submissions…</p>';refresh();return}
-  if(p==='COA overview')overview();else if(p==='COA checklist')checklist();else if(p==='COA access')accessPage();else if(p==='COA backend')backendPage();else accountPage();
+  if(p==='COA overview')overview();else if(p==='COA checklist'||p==='COA special')checklist();else if(p==='COA access')accessPage();else if(p==='COA backend')backendPage();else accountPage();
   if(data.session.preview&&p!=='Account settings')markPreview()}
 /** Preview permits navigation and exports while blocking changes to records. */
 function markPreview(){const c=$c();if(!c||!data?.session.preview)return;
   if(!c.querySelector('.coa-preview-bar'))c.insertAdjacentHTML('afterbegin',`<div class="coa-preview-bar"><span>Viewing as <b>${esc(data.session.previewLabel)}</b> · read-only preview. Uploads, reviews and changes are turned off.</span><button class="coa-preview-back">Back to superadmin</button></div>`);
   c.querySelector('.coa-preview-back').onclick=()=>setViewAs('');
-  const keep='[data-tab],[data-office],[data-go],[data-page],[data-download],#export-btn,#coa-close,#coa-to-list,.coa-preview-back';
+  const keep='[data-tab],[data-office],[data-go],[data-page],[data-download],#export-btn,#coa-close,#coa-to-list,#coa-reference,.coa-preview-back';
   const exportButton=c.querySelector('#export-btn');
   if(exportButton){exportButton.disabled=false;exportButton.title='Export this report to Excel'}
   c.querySelectorAll('button,select[data-type],select[data-flow],input[data-cash],input[type=file]').forEach(el=>{if(!el.matches(keep)){el.disabled=true;el.title='Read-only preview'}})}
@@ -78,9 +80,9 @@ async function setViewAs(key){viewAs=VIEW_AS.some(v=>v[0]===key)?key:'';ui.selec
 
 // ---------- shared pieces ----------
 function banner(){if(source.kind!=='demo')return '';return `<div class="coa-demo"><span>${accessStore?'<b>Accounts saved on this computer.</b> Allowed users and registrations survive restarts.':'<b>Demo data.</b> Accounts are not saved in this preview.'} Uploads and reviews remain temporary. The shared backend is not connected yet; accounts are not shared with other computers.</span></div>`}
-function itemTable(items,{selectable=false,empty='No reports to show'}={}){return `<div class="table-wrap coa-table coa-items"><table><thead><tr><th>Report</th><th>File name</th><th>Office</th><th>Period</th><th>Due</th><th>Countdown</th><th>Status</th>${selectable?'<th class="num coa-files-col">Files</th>':''}</tr></thead><tbody>${items.length?items.map(i=>{let currentFiles=(data.filesByKey[i.key]||[]).filter(f=>!f.supersededAt),n=currentFiles.length;return `<tr data-key="${esc(i.key)}" tabindex="0" class="${ui.selected===i.key&&selectable?'selected':''}"><td class="coa-report"><b>${esc(i.report.code)}</b><span>${esc(i.report.name)}</span></td><td class="coa-file-names">${currentFiles.length?currentFiles.map(f=>`<div title="${esc(f.name)}">${esc(f.name)}</div>`).join(''):'<span class="muted">&mdash;</span>'}</td><td>${esc(short(i.unit.code))}</td><td>${esc(i.period.label)}</td><td>${S.formatDate(i.dueDate)}</td><td>${countdown(i)}</td><td>${badge(i)}</td>${selectable?`<td class="num coa-files-col">${n||'<span class="muted">—</span>'}</td>`:''}</tr>`}).join(''):`<tr><td class="empty-row" colspan="${selectable?8:7}">${empty}</td></tr>`}</tbody></table></div>`}
+function itemTable(items,{selectable=false,empty='No reports to show'}={}){return `<div class="table-wrap coa-table coa-items"><table><thead><tr><th>Report</th><th>File name</th><th>Office</th><th>Period</th><th>Due</th><th>Countdown</th><th>Status</th>${selectable?'<th class="num coa-files-col">Files</th>':''}</tr></thead><tbody>${items.length?items.map(i=>{let currentFiles=(data.filesByKey[i.key]||[]).filter(f=>!f.supersededAt),n=currentFiles.length;return `<tr data-key="${esc(i.key)}" tabindex="0" class="${ui.selected===i.key&&selectable?'selected':''}"><td class="coa-report"><b>${esc(i.report.code)}</b><span>${esc(i.report.name)}</span></td><td class="coa-file-names">${currentFiles.length?currentFiles.map(f=>`<div title="${esc(f.name)}">${esc(f.name)}</div>`).join(''):'<span class="muted">&mdash;</span>'}</td><td>${esc(short(i.unit.code))}</td><td>${esc(i.period.label)}</td><td>${S.formatDate(i.dueDate)}</td><td>${countdown(i)}</td><td>${badge(i)}</td>${selectable?`<td class="num coa-files-col">${n||'<span class="muted">—</span>'}</td>`:''}</tr>`}).join(''):`<tr><td class="empty-row" colspan="${selectable?9:8}">${empty}</td></tr>`}</tbody></table></div>`}
 function bindRows(container,onOpen){container.querySelectorAll('tr[data-key]').forEach(tr=>{tr.onclick=()=>onOpen(tr.dataset.key);tr.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onOpen(tr.dataset.key)}}})}
-function openItem(key){ui.selected=key;if(page!=='COA checklist'){page='COA checklist';render()}else{drawTable();drawPanel()}}
+function openItem(key){const target=byKey(key)?.report.requestCode?'COA special':'COA checklist';switchChecklistScope(target);Object.assign(ui,{report:'',fund:'',office:'ALL',freq:'',status:'',period:'',q:'',selected:key});if(page!==target){page=target;render()}else{drawTable();drawPanel()}}
 
 // ---------- Overview ----------
 function overview(){const {items,today,session,config}=data,m=mine(items),month=today.slice(0,7);
@@ -97,7 +99,7 @@ function overview(){const {items,today,session,config}=data,m=mine(items),month=
   `<div class="panel"><div class="coa-panel-title"><h3>By office</h3><span class="muted">Tracking since ${S.formatDate(config.trackingStart)}</span></div><div class="table-wrap coa-table"><table><thead><tr><th>Office</th><th class="num">Overdue</th><th class="num">Due ≤${config.reminderDays} days</th><th class="num">Not uploaded</th><th class="num">For review</th><th class="num">Returned</th><th class="num">Released</th><th class="num">Expected</th></tr></thead><tbody>${officeRows}</tbody></table></div><p class="muted">“Not uploaded” counts reports with no file that are overdue or due within ${config.reminderDays} days.</p></div>`+
   remindersPanel();
   bindRows($c(),openItem);
-  $c().querySelectorAll('tr[data-office]').forEach(tr=>{let go=()=>{Object.assign(ui,{office:tr.dataset.office,status:'open',freq:'',period:'',q:''});page='COA checklist';render()};tr.onclick=go;tr.onkeydown=e=>{if(e.key==='Enter')go()}});
+  $c().querySelectorAll('tr[data-office]').forEach(tr=>{let go=()=>{switchChecklistScope('COA checklist');Object.assign(ui,{office:tr.dataset.office,status:'open',freq:'',period:'',q:''});page='COA checklist';render()};tr.onclick=go;tr.onkeydown=e=>{if(e.key==='Enter')go()}});
   document.querySelector('#coa-to-list').onclick=()=>{page='COA checklist';render()};
   bindReminders()}
 
@@ -108,21 +110,24 @@ function bindReminders(){let t=document.querySelector('#coa-tray'),l=document.qu
   if(n)n.onclick=async()=>{let r=await checkReminder(true);prefs=await desktop.coaDesktop();render();if(r&&!r.shown)toast(r.reason)}}
 
 // ---------- Checklist ----------
+function specialHeader(){const r=root.CoaSpecial.request;return '<div class="panel coa-special-header"><h2>'+esc(r.title)+'</h2><p>Division Memorandum 420, s. 2026 &middot; October 20, 2026</p><p><b>Annex A: October 23</b> &middot; <b>Other documents: November 6, 2026</b> through Accounting (hard and soft copies). COA deadline: November 13, 2026.</p><p class="muted">One-time request, organized separately from regular reports. Office folders collect supporting documents for consolidation; mark inapplicable requirements with a reason. The supplied scan begins Annex A at section 4.3; request the complete form from the audit team.</p>'+ (root.desktop?.coaOpenReference?'<button id="coa-reference">Open original request (PDF)</button>':'')+'</div>'}
 function reportCode(r){return r.code.replace(/_(PROVIDENT|TRUST)$/,'')}
 function reportTitle(r){return r.name.replace(/\s+[-\u2013\u2014]\s+(Regular|Provident|Trust) Fund$/,'')}
-function filtered(){let q=ui.q.trim().toLowerCase();return data.items.filter(i=>(ui.office==='ALL'||i.unit.code===ui.office)&&(!ui.report||reportCode(i.report)===ui.report)&&(!ui.fund||(i.report.fundCode||'REGULAR')===ui.fund)&&(!ui.freq||i.report.frequency===ui.freq)&&(!ui.status||(ui.status==='open'?!i.done:i.status===ui.status))&&(!ui.period||i.period.key===ui.period)&&(!q||`${i.report.code} ${i.report.name}`.toLowerCase().includes(q)))}
-function checklist(){const {items,config}=data;const periods=[...new Map(items.map(i=>[i.period.key,i.period])).values()].sort((a,b)=>b.end.localeCompare(a.end)||a.key.localeCompare(b.key));
+function filtered(){let q=ui.q.trim().toLowerCase();return data.items.filter(i=>!!i.report.requestCode===(page==='COA special')&&(ui.office==='ALL'||i.unit.code===ui.office)&&(!ui.report||reportCode(i.report)===ui.report)&&(!ui.fund||(i.report.fundCode||'REGULAR')===ui.fund)&&(!ui.freq||i.report.frequency===ui.freq)&&(!ui.status||(ui.status==='open'?!i.done:i.status===ui.status))&&(!ui.period||i.period.key===ui.period)&&(!q||`${i.report.code} ${i.report.name}`.toLowerCase().includes(q)))}
+function checklist(){switchChecklistScope(page);const config=data.config,special=page==='COA special',items=data.items.filter(i=>!!i.report.requestCode===special);if(special){ui.freq='';ui.fund=''}const periods=[...new Map(items.map(i=>[i.period.key,i.period])).values()].sort((a,b)=>b.end.localeCompare(a.end)||a.key.localeCompare(b.key));
   if(ui.period&&!periods.some(p=>p.key===ui.period))ui.period='';
   const opts=(list,v)=>list.map(([k,l])=>`<option value="${esc(k)}" ${v===k?'selected':''}>${esc(l)}</option>`).join('');
-  const reports=[...new Map(config.reportTypes.map(r=>[reportCode(r),reportTitle(r)])).entries()];
-  $c().innerHTML=heading('Checklist',data.session.role==='coa'?'Reports released to COA':`Every report each office must submit, tracked from ${S.formatDate(config.trackingStart)}. Select a row for details.`)+banner()+
-  `<div class="toolbar coa-filters"><select id="coa-office" aria-label="Office">${opts([['ALL','All offices'],...config.units.map(u=>[u.code,short(u.code)])],ui.office)}</select><select id="coa-report" aria-label="Report title">${opts([['','All reports'],...reports],ui.report)}</select><select id="coa-fund" aria-label="Fund">${opts([['','All funds'],...S.FUNDS.map(f=>[f.code,f.name])],ui.fund)}</select><select id="coa-freq" aria-label="Frequency">${opts(FREQ,ui.freq)}</select><select id="coa-status" aria-label="Status">${opts(STATUSES,ui.status)}</select><select id="coa-period" aria-label="Period">${opts([['','All periods'],...periods.map(p=>[p.key,p.label])],ui.period)}</select><input id="coa-q" type="search" placeholder="Search report" value="${esc(ui.q)}"></div><div id="coa-split" class="coa-split"><div class="coa-main"><div id="coa-table"></div><p id="coa-countline" class="muted"></p></div><div id="coa-panel" class="coa-panel" tabindex="-1"></div></div>`;
+  if(ui.report&&!config.reportTypes.some(r=>!!r.requestCode===special&&reportCode(r)===ui.report))ui.report='';
+  const reports=[...new Map(config.reportTypes.filter(r=>!!r.requestCode===special).map(r=>[reportCode(r),reportTitle(r)])).entries()];
+  $c().innerHTML=heading(special?'Special Submissions':'Checklist',data.session.role==='coa'?'Reports released to COA':special?'One-time audit requests and supporting documents. Select an item to upload or review.':`Every report each office must submit, tracked from ${S.formatDate(config.trackingStart)}. Select a row for details.`)+banner()+(special?specialHeader():'')+
+  `<div class="toolbar coa-filters"><select id="coa-office" aria-label="Office">${opts([['ALL','All offices'],...config.units.map(u=>[u.code,short(u.code)])],ui.office)}</select><select id="coa-report" aria-label="Report title">${opts([['','All reports'],...reports],ui.report)}</select><select id="coa-fund" ${special?'hidden':''} aria-label="Fund">${opts([['','All funds'],...S.FUNDS.map(f=>[f.code,f.name])],ui.fund)}</select><select id="coa-freq" ${special?'hidden':''} aria-label="Frequency">${opts(FREQ,ui.freq)}</select><select id="coa-status" aria-label="Status">${opts(STATUSES,ui.status)}</select><select id="coa-period" aria-label="Period">${opts([['','All periods'],...periods.map(p=>[p.key,p.label])],ui.period)}</select><input id="coa-q" type="search" placeholder="Search report" value="${esc(ui.q)}"></div><div id="coa-split" class="coa-split"><div class="coa-main"><div id="coa-table"></div><p id="coa-countline" class="muted"></p></div><div id="coa-panel" class="coa-panel" tabindex="-1"></div></div>`;
   
   [['#coa-office','office'],['#coa-report','report'],['#coa-fund','fund'],['#coa-freq','freq'],['#coa-status','status'],['#coa-period','period']].forEach(([s,k])=>document.querySelector(s).onchange=e=>{ui[k]=e.target.value;drawTable()});
   document.querySelector('#coa-q').oninput=e=>{ui.q=e.target.value;drawTable()};
+  const ref=document.querySelector('#coa-reference');if(ref)ref.onclick=async()=>{try{await root.desktop.coaOpenReference()}catch(e){toast(e.message)}};
   drawTable();drawPanel()}
 function drawTable(){let el=document.querySelector('#coa-table');if(!el)return;let list=filtered();if(ui.selected&&!list.some(i=>i.key===ui.selected)){ui.selected=null;drawPanel()}el.innerHTML=itemTable(list,{selectable:true,empty:'No reports match these filters'});bindRows(el,openItem);
-  let over=list.filter(i=>i.urgency==='overdue').length,miss=list.filter(i=>i.status==='missing').length;document.querySelector('#coa-countline').textContent=`Showing ${list.length} of ${data.items.length}${over?` · ${over} overdue`:''}${miss?` · ${miss} not uploaded`:''}`;
+  let over=list.filter(i=>i.urgency==='overdue').length,miss=list.filter(i=>i.status==='missing').length;document.querySelector('#coa-countline').textContent=`Showing ${list.length} of ${data.items.filter(i=>!!i.report.requestCode===(page==='COA special')).length}${over?` · ${over} overdue`:''}${miss?` · ${miss} not uploaded`:''}`;
   el.querySelector('tr.selected')?.scrollIntoView({block:'nearest'})}
 
 // ---------- Details panel ----------

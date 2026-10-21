@@ -1,14 +1,14 @@
 {
   "name": "fundwork",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Local fund accounting and year-end reporting workspace",
   "main": "main.js",
   "scripts": {
     "dev": "node launch.js",
     "start": "node launch.js",
-    "test": "node test.js && node test-store.js && node coa/test.js",
+    "test": "node test.js && node test-store.js && node coa/test.js && node coa/test-special.js",
     "supabase": "node scripts/supabase.js",
-    "check": "node --check main.js && node --check store.js && node --check preload.js && node --check engine.js && node --check renderer.js && node --check coa/schedule.js && node --check coa/precheck.js && node --check coa/demo-source.js && node --check coa/ui.js && node --check coa/login.js && node --check coa/supabase-source.js",
+    "check": "node --check main.js && node --check store.js && node --check preload.js && node --check engine.js && node --check renderer.js && node --check coa/schedule.js && node --check coa/precheck.js && node --check coa/demo-source.js && node --check coa/ui.js && node --check coa/login.js && node --check coa/supabase-source.js && node --check coa/special.js",
     "dist:win": "electron-builder --win nsis --x64 --publish never",
     "dist:mac": "electron-builder --mac dmg --publish never"
   },

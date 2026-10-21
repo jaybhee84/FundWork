@@ -1,4 +1,4 @@
-const {app,BrowserWindow,ipcMain,dialog,Notification,Tray,Menu,clipboard,safeStorage}=require('electron');
+const {app,BrowserWindow,ipcMain,dialog,Notification,Tray,Menu,clipboard,safeStorage,shell}=require('electron');
 const fs=require('node:fs'); const path=require('node:path'); const ExcelJS=require('exceljs');
 let win;
 // Books live in SQLite (store.js). An older accounts.json is imported on first launch and kept as accounts.json.migrated.
@@ -112,3 +112,5 @@ ipcMain.handle('backend-test',(_,arg)=>testBackend(arg?.url,arg?.publishableKey)
 const migrationsDir=()=>path.join(__dirname,'supabase','migrations');
 ipcMain.handle('backend-sql-files',()=>fs.readdirSync(migrationsDir()).filter(f=>f.endsWith('.sql')).sort());
 ipcMain.handle('backend-copy-sql',(_,name)=>{let files=fs.readdirSync(migrationsDir()).filter(f=>f.endsWith('.sql'));if(!files.includes(name))throw Error('Unknown setup step');clipboard.writeText(fs.readFileSync(path.join(migrationsDir(),name),'utf8'));return name});
+
+ipcMain.handle('coa-open-reference',async()=>{const error=await shell.openPath(path.join(__dirname,'assets','coa-interim-audit-2026.pdf'));if(error)throw Error(error)});
